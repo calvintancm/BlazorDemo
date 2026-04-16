@@ -1,0 +1,39 @@
+﻿@page "/"
+@attribute [Authorize]
+@inject ProductService ProductService
+
+<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Products</MudText>
+            <MudText Typo="Typo.h4">@totalProducts</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Stock Units</MudText>
+            <MudText Typo="Typo.h4">@totalStock</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Inventory Value</MudText>
+            <MudText Typo="Typo.h4">@totalValue.ToString("C")</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    int totalProducts, totalStock;
+    decimal totalValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var products = await ProductService.GetAllAsync();
+        totalProducts = products.Count;
+        totalStock = products.Sum(p => p.Stock);
+        totalValue = products.Sum(p => p.Price * p.Stock);
+    }
+}

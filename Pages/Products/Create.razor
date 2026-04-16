@@ -1,0 +1,61 @@
+﻿@page "/products/create"
+@using BlazorDemo.Data
+@using Microsoft.EntityFrameworkCore;
+
+@attribute [Authorize]
+@inject ProductService ProductService
+@inject NavigationManager Nav
+@inject AppDbContext Db
+
+<MudText Typo="Typo.h5" Class="mb-4">Add New Product</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <EditForm Model="@product" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Product Name" @bind-Value="product.Name" For="@(() => product.Name)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect Label="Category" @bind-Value="product.CategoryId" For="@(() => product.CategoryId)">
+                        @foreach (var cat in categories)
+                        {
+                            <MudSelectItem Value="@cat.Id">@cat.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Label="Price (RM)" @bind-Value="product.Price" For="@(() => product.Price)" Format="F2" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Label="Stock" @bind-Value="product.Stock" For="@(() => product.Stock)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Description" @bind-Value="product.Description" Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="product.IsActive" Label="Active" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+            <MudCardActions>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/products"))">Cancel</MudButton>
+            </MudCardActions>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    Product product = new();
+    List<Category> categories = new();
+
+    protected override async Task OnInitializedAsync()
+        => categories = await Db.Categories.ToListAsync();
+
+    async Task HandleSubmit()
+    {
+        await ProductService.CreateAsync(product);
+        Nav.NavigateTo("/products");
+    }
+}

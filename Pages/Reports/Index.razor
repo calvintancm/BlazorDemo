@@ -1,0 +1,37 @@
+﻿@page "/reports"
+@attribute [Authorize]
+@inject ReportService ReportService
+
+<MudText Typo="Typo.h5" Class="mb-4">Inventory Report by Category</MudText>
+
+@if (report == null)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@report" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Category</MudTh>
+            <MudTh>Products</MudTh>
+            <MudTh>Total Stock</MudTh>
+            <MudTh>Inventory Value</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Category</MudTd>
+            <MudTd>@context.ProductCount</MudTd>
+            <MudTd>@context.TotalStock</MudTd>
+            <MudTd>@context.TotalValue.ToString("C")</MudTd>
+        </RowTemplate>
+        <FooterContent>
+            <MudTd colspan="3"><strong>Grand Total</strong></MudTd>
+            <MudTd><strong>@report.Sum(r => r.TotalValue).ToString("C")</strong></MudTd>
+        </FooterContent>
+    </MudTable>
+}
+
+@code {
+    List<ReportSummary>? report;
+    protected override async Task OnInitializedAsync()
+        => report = await ReportService.GetCategoryReportAsync();
+}

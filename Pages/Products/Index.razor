@@ -1,0 +1,88 @@
+﻿@page "/products"
+@attribute [Authorize]
+@inject ProductService ProductService
+@inject NavigationManager Nav
+
+<MudText Typo="Typo.h5" Class="mb-3">Products</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           OnClick="@(() => Nav.NavigateTo("/products/create"))"
+           Class="mb-3">
+    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" /> Add Product
+</MudButton>
+
+@if (products == null)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@products" Hover="true" Striped="true" Dense="true" Filter="FilterFunc">
+        <ToolBarContent>
+            <MudTextField @bind-Value="searchString" Placeholder="Search products..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Category</MudTh>
+            <MudTh>Price</MudTh>
+            <MudTh>Stock</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Category?.Name</MudTd>
+            <MudTd>@context.Price.ToString("C")</MudTd>
+            <MudTd>@context.Stock</MudTd>
+            <MudTd>
+                <MudChip T="string" Color="@(context.IsActive? Color.Success: Color.Error)" Size="Size.Small">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+          <MudTd>
+    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                   OnClick="@(() => Nav.NavigateTo($"/products/edit/{context.Id}"))" />
+    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                   OnClick="@(() => ConfirmDelete(context.Id))" />
+</MudTd>
+
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (showDeleteConfirm)
+{
+    <MudMessageBox @ref="mbox" Title="Confirm Delete" CancelText="Cancel">
+        <MessageContent>Are you sure you want to delete this product?</MessageContent>
+        <YesButton><MudButton Variant="Variant.Filled" Color="Color.Error">Delete</MudButton></YesButton>
+    </MudMessageBox>
+}
+
+@code {
+    List<Product>? products;
+    string searchString = "";
+    bool showDeleteConfirm;
+    int deleteId;
+    MudMessageBox? mbox;
+
+    protected override async Task OnInitializedAsync()
+        => products = await ProductService.GetAllAsync();
+
+    bool FilterFunc(Product p)
+        => string.IsNullOrEmpty(searchString) ||
+           p.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+           (p.Category?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    async Task ConfirmDelete(int id)
+    {
+        deleteId = id;
+        bool? result = await mbox!.ShowAsync();
+        if (result == true)
+        {
+            await ProductService.DeleteAsync(deleteId);
+            products = await ProductService.GetAllAsync();
+        }
+    }
+}
