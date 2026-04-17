@@ -1,6 +1,8 @@
 using BlazorDemo.Data;
 using BlazorDemo.Models;
 using BlazorDemo.Services;
+using Microsoft.AspNetCore.Identity;
+
 //using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
@@ -27,6 +29,13 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<ReportService>();
+
+
+builder.Services.AddScoped<SignInManager<ApplicationUser>>();
+// Required so Blazor pages can access HttpContext for Identity
+builder.Services.AddHttpContextAccessor();
+
+
 
 var app = builder.Build();
 

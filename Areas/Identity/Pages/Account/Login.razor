@@ -1,0 +1,503 @@
+@page "/login"
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using BlazorDemo.Models
+@using Microsoft.AspNetCore.WebUtilities
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign In</PageTitle>
+
+<HeadContent>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:          #06090f;
+            --surface:     rgba(255,255,255,0.038);
+            --border:      rgba(255,255,255,0.08);
+            --accent:      #38bdf8;
+            --accent-glow: rgba(56,189,248,0.22);
+            --accent2:     #818cf8;
+            --text:        #e2e8f4;
+            --muted:       #64748b;
+            --error:       #f87171;
+            --error-bg:    rgba(248,113,113,0.09);
+            --input-bg:    rgba(255,255,255,0.045);
+            --radius:      13px;
+            --font:        'Sora', sans-serif;
+            --mono:        'DM Mono', monospace;
+        }
+
+        .login-root {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            position: relative; overflow: hidden;
+        }
+
+        /* ?? Background ?? */
+        .login-root::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 0;
+            background:
+                radial-gradient(ellipse 65% 50% at 15% 10%, rgba(56,189,248,0.11) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 85% 85%, rgba(129,140,248,0.10) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .grid-overlay {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+            background-size: 52px 52px;
+        }
+        .orb {
+            position: fixed; border-radius: 50%;
+            filter: blur(90px); pointer-events: none; z-index: 0;
+            animation: drift 20s ease-in-out infinite alternate;
+        }
+        .orb-a { width: 460px; height: 460px; top: -140px; left: -100px;
+                  background: rgba(56,189,248,0.07); animation-duration: 24s; }
+        .orb-b { width: 340px; height: 340px; bottom: -80px; right: -80px;
+                  background: rgba(129,140,248,0.07); animation-duration: 19s; animation-delay: -9s; }
+        .orb-c { width: 220px; height: 220px; top: 45%; left: 55%;
+                  background: rgba(56,189,248,0.04); animation-duration: 28s; animation-delay: -5s; }
+
+        @@keyframes drift {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(28px, 36px) scale(1.07); }
+        }
+
+        /* ?? Card ?? */
+        .login-card {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 448px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            padding: 46px 42px 42px;
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.035),
+                0 36px 72px rgba(0,0,0,0.5),
+                0 0 100px var(--accent-glow);
+            animation: cardIn .65s cubic-bezier(0.16,1,0.3,1) both;
+        }
+
+        @@keyframes cardIn {
+            from { opacity: 0; transform: translateY(32px) scale(0.96); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ?? Brand ?? */
+        .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 38px; }
+        .brand-icon {
+            width: 40px; height: 40px; border-radius: 11px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 18px var(--accent-glow);
+            flex-shrink: 0;
+        }
+        .brand-icon svg { width: 20px; height: 20px; }
+        .brand-name { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+
+        /* ?? Heading ?? */
+        .heading { margin-bottom: 30px; }
+        .heading h1 {
+            font-size: 1.7rem; font-weight: 600;
+            letter-spacing: -0.035em; line-height: 1.12;
+            margin-bottom: 7px;
+            background: linear-gradient(135deg, #e2e8f4 30%, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .heading p { font-size: 0.875rem; color: var(--muted); }
+
+        /* ?? Alert ?? */
+        .alert-err {
+            display: flex; align-items: flex-start; gap: 10px;
+            background: var(--error-bg);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 10px; padding: 12px 14px;
+            margin-bottom: 22px;
+            font-size: 0.84rem; color: #fca5a5;
+            animation: fadeIn .3s ease both;
+        }
+        .alert-err svg { flex-shrink: 0; margin-top: 1px; }
+
+        @@keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ?? Form groups ?? */
+        .form-group { margin-bottom: 18px; }
+        .form-label {
+            display: block; font-size: 0.775rem; font-weight: 500;
+            letter-spacing: 0.045em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 8px;
+        }
+
+        .input-wrap { position: relative; }
+        .input-icon {
+            position: absolute; left: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted); pointer-events: none;
+            transition: color .2s;
+        }
+        .input-wrap:focus-within .input-icon { color: var(--accent); }
+
+        .form-input {
+            width: 100%; height: 50px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font); font-size: 0.92rem;
+            padding: 0 46px 0 42px;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+        }
+        .form-input::placeholder { color: rgba(100,116,139,0.55); }
+        .form-input:focus {
+            border-color: var(--accent);
+            background: rgba(56,189,248,0.055);
+            box-shadow: 0 0 0 3px rgba(56,189,248,0.13);
+        }
+        .form-input.is-error { border-color: var(--error); }
+        .field-error { font-size: 0.775rem; color: var(--error); margin-top: 5px; }
+
+        /* eye toggle */
+        .eye-btn {
+            position: absolute; right: 13px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none; cursor: pointer;
+            color: var(--muted); line-height: 0;
+            transition: color .2s; padding: 4px;
+        }
+        .eye-btn:hover { color: var(--text); }
+
+        /* ?? Remember / Forgot row ?? */
+        .row-meta {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 26px;
+        }
+        .check-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; color: var(--muted);
+            cursor: pointer; user-select: none;
+        }
+        .check-label input[type="checkbox"] { display: none; }
+        .custom-box {
+            width: 18px; height: 18px; border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: all .2s;
+        }
+        .check-label input:checked + .custom-box {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(56,189,248,0.18);
+        }
+        .check-icon { display: none; }
+        .check-label input:checked + .custom-box .check-icon { display: block; }
+
+        .forgot-link {
+            font-size: 0.83rem; color: var(--accent);
+            text-decoration: none; font-weight: 500;
+            transition: opacity .2s;
+        }
+        .forgot-link:hover { opacity: 0.7; }
+
+        /* ?? Submit ?? */
+        .btn-submit {
+            width: 100%; height: 52px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            border: none; border-radius: var(--radius);
+            color: #fff; font-family: var(--font);
+            font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em;
+            cursor: pointer; position: relative; overflow: hidden;
+            box-shadow: 0 4px 28px var(--accent-glow);
+            transition: transform .15s, box-shadow .15s, filter .15s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 36px rgba(56,189,248,0.35);
+            filter: brightness(1.06);
+        }
+        .btn-submit:active:not(:disabled) { transform: translateY(0); }
+        .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-submit::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.16) 50%, transparent 60%);
+            transform: translateX(-100%); transition: transform .5s ease;
+        }
+        .btn-submit:hover:not(:disabled)::after { transform: translateX(100%); }
+
+        /* spinner */
+        .spin {
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin .65s linear infinite;
+        }
+        @@keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ?? Divider ?? */
+        .divider {
+            display: flex; align-items: center; gap: 12px;
+            margin: 26px 0; color: var(--muted); font-size: 0.78rem;
+        }
+        .divider::before, .divider::after {
+            content: ''; flex: 1; border-top: 1px solid var(--border);
+        }
+
+        /* ?? Register row ?? */
+        .reg-row { text-align: center; font-size: 0.85rem; color: var(--muted); }
+        .reg-row a {
+            color: var(--accent); font-weight: 500;
+            text-decoration: none; transition: opacity .2s;
+        }
+        .reg-row a:hover { opacity: 0.7; }
+
+        /* ?? Footer ?? */
+        .foot {
+            text-align: center; margin-top: 28px;
+            font-size: 0.73rem; color: rgba(100,116,139,0.4);
+            font-family: var(--mono);
+        }
+    </style>
+</HeadContent>
+
+<div class="login-root">
+    <div class="grid-overlay"></div>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+
+    <div class="login-card">
+
+        <!-- Brand -->
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <span class="brand-name">BlazorDemo</span>
+        </div>
+
+        <!-- Heading -->
+        <div class="heading">
+            <h1>Welcome back</h1>
+            <p>Sign in to continue to your dashboard</p>
+        </div>
+
+        <!-- Error alert -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert-err">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>@errorMessage</span>
+            </div>
+        }
+
+        <!-- Form -->
+        <EditForm Model="loginInput" OnValidSubmit="HandleLogin" FormName="loginForm">
+            <DataAnnotationsValidator />
+
+            <!-- Email -->
+            <div class="form-group">
+                <label class="form-label" for="emailField">Email address</label>
+                <div class="input-wrap">
+                    <span class="input-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </span>
+                    <InputText id="emailField"
+                               class="@(showEmailError ? "form-input is-error" : "form-input")"
+                               @bind-Value="loginInput.Email"
+                               placeholder="you@example.com"
+                               autocomplete="email"
+                               type="email" />
+                </div>
+                <ValidationMessage For="@(() => loginInput.Email)" class="field-error" />
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+                <label class="form-label" for="passField">Password</label>
+                <div class="input-wrap">
+                    <span class="input-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
+                    <InputText id="passField"
+                               class="@(showPassError ? "form-input is-error" : "form-input")"
+                               @bind-Value="loginInput.Password"
+                               placeholder="••••••••"
+                               autocomplete="current-password"
+                               type="@(showPassword ? "text" : "password")" />
+                    <button type="button" class="eye-btn" @onclick="TogglePassword" aria-label="Toggle password">
+                        @if (showPassword)
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        }
+                    </button>
+                </div>
+                <ValidationMessage For="@(() => loginInput.Password)" class="field-error" />
+            </div>
+
+            <!-- Remember + Forgot -->
+            <div class="row-meta">
+                <label class="check-label">
+                    <InputCheckbox @bind-Value="loginInput.RememberMe" />
+                    <span class="custom-box">
+                        <svg class="check-icon" width="10" height="10" viewBox="0 0 24 24"
+                             fill="none" stroke="#06090f" stroke-width="3.5"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </span>
+                    Remember me
+                </label>
+                <a href="/forgot-password" class="forgot-link">Forgot password?</a>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn-submit" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spin"></span>
+                    <span>Signing in…</span>
+                }
+                else
+                {
+                    <span>Sign in</span>
+                }
+            </button>
+        </EditForm>
+
+        <div class="divider">or</div>
+
+        <div class="reg-row">
+            Don't have an account? <a href="/register">Create one free</a>
+        </div>
+
+        <p class="foot">Protected by ASP.NET Core Identity</p>
+    </div>
+</div>
+
+@code {
+    private LoginInputModel loginInput = new();
+    private string? errorMessage;
+    private bool isLoading;
+    private bool showPassword;
+    private bool showEmailError;
+    private bool showPassError;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private void TogglePassword() => showPassword = !showPassword;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+        showEmailError = false;
+        showPassError = false;
+
+        try
+        {
+            var result = await SignInManager.PasswordSignInAsync(
+                loginInput.Email,
+                loginInput.Password,
+                loginInput.RememberMe,
+                lockoutOnFailure: false);
+
+            if (result.Succeeded)
+            {
+                Logger.LogInformation("User logged in.");
+
+                // Redirect to returnUrl only when it is local; otherwise go home
+                var destination = (!string.IsNullOrEmpty(ReturnUrl) && Uri.IsWellFormedUriString(ReturnUrl, UriKind.Relative))
+                    ? ReturnUrl
+                    : "/";
+
+                Navigation.NavigateTo(destination, forceLoad: true);
+            }
+            else if (result.IsLockedOut)
+            {
+                Logger.LogWarning("User account locked out.");
+                Navigation.NavigateTo("/lockout", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = "Invalid email or password. Please try again.";
+                showEmailError = true;
+                showPassError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Login error.");
+            errorMessage = "An unexpected error occurred. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class LoginInputModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Email is required.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Enter a valid email.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Password is required.")]
+        [System.ComponentModel.DataAnnotations.DataType(System.ComponentModel.DataAnnotations.DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}
